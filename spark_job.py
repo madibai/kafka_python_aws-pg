@@ -15,15 +15,15 @@ outputPath = '/tmp/spark/checkpoint_01'
 # Getting the SQL Template
 # -------------------------------------------------
 def get_sql_query():
-    strSQL = ''
-
-    try:
-        f = open('sql/transaction_calc.sql', 'r')
-        strSQL = f.read()
-        f.close()
-    except Exception as e:
-        print("--> Opps! I can't open the file transaction_calc.sql", e)
-
+    strSQL = 'select ' \
+             'from_unixtime(unix_timestamp()) as curr_time,'\
+             '    t.city                        as city,' \
+             '    t.currency                      as currency,' \
+             '    sum(amount)                     as amount ' \
+             'from exchanges_stream t ' \
+             'group by' \
+             '    t.city,' \
+             '    t.currency'
     return strSQL
 
 
@@ -48,13 +48,13 @@ def process(time, rdd):
     try:
         spark = getSparkSessionInstance(rdd.context.getConf())
 
-        rowRdd = rdd.map(lambda w: Row(branch=w['branch'],
+        rowRdd = rdd.map(lambda w: Row(city=w['city'],
                                        currency=w['currency'],
                                        amount=w['amount']))
 
         testDataFrame = spark.createDataFrame(rowRdd)
 
-        testDataFrame.createOrReplaceTempView("treasury_stream")
+        testDataFrame.createOrReplaceTempView("exchanges_stream")
 
         sql_query = get_sql_query()
         testResultDataFrame = spark.sql(sql_query)
@@ -66,17 +66,17 @@ def process(time, rdd):
                 .format("jdbc") \
                 .mode("append") \
                 .option("driver", 'org.postgresql.Driver') \
-                .option("url", "jdbc:postgresql://myhabrtest.ciny8bykwxeg.us-east-1.rds.amazonaws.com:5432/habrDB") \
-                .option("dbtable", "transaction_flow") \
-                .option("user", "habr") \
-                .option("password", "habr12345") \
+                .option("url", "jdbc:postgresql://dbtest-1.cmwfjvlei66t.eu-central-1.rds.amazonaws.com:5432/") \
+                .option("dbtable", "exchanges") \
+                .option("user", "postgres") \
+                .option("password", "postgres") \
                 .save()
-
+            print('DB write succesfull !')
         except Exception as e:
-            print("--> Opps! It seems an Errrorrr with DB working!", e)
+            print("-->Errrorrr with DB working!", e)
 
     except Exception as e:
-        print("--> Opps! Is seems an Error!!!", e)
+        print("--> Error!!!", e)
 
 
 # -------------------------------------------------
@@ -86,7 +86,7 @@ def createContext():
     sc = SparkContext(appName="PythonStreamingKafkaTransaction")
     sc.setLogLevel("ERROR")
 
-    ssc = StreamingContext(sc, 2)
+    ssc = StreamingContext(sc, 10)#  2
 
     broker_list, topic = sys.argv[1:]
 
@@ -112,7 +112,7 @@ def createContext():
 if __name__ == "__main__":
 
     if len(sys.argv) != 3:
-        print("Usage: spark_job.py <zk> <topic>", file=sys.stderr)
+        #  print("Usage: spark_job.py <zk> <topic>", file=sys.stderr)
         exit(-1)
 
 print("--> Creating new context")
