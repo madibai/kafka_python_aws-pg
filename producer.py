@@ -9,7 +9,7 @@ def get_random_value():
     branch_list = ["Almaty", "Astana", "Taraz", "Semei"]
     currency_list = ["KZT", "RUB", "GBP", "USD"]
 
-    new_dict['branch'] = choice(branch_list)
+    new_dict['city'] = choice(branch_list)
     new_dict['currency'] = choice(currency_list)
     new_dict['amount'] = randint(1, 100)
 
@@ -20,7 +20,7 @@ if __name__ == "__main__":
     producer = KafkaProducer(bootstrap_servers=['localhost:9092'],
                              value_serializer=lambda x: dumps(x).encode('utf-8'),
                              compression_type='gzip')
-    topic_name = 'data_transfer'
+    topic_name = 'transaction'
 
     while True:
         for _ in range(100):
@@ -35,5 +35,5 @@ if __name__ == "__main__":
                 print(e)
             finally:
                 producer.flush()
-        sleep(1)
+        sleep(13)
     producer.close()
